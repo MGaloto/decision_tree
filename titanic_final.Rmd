@@ -1,0 +1,733 @@
+---
+title: "Titanic"
+author: "Maximiliano Galoto"
+subtitle: "Data Mining"
+output:
+ prettydoc::html_pretty:
+    theme: lumen
+    highlight: github
+    toc: true
+    toc_depth: 2
+    math: katex
+
+
+---
+
+
+```{css my-header-colors, echo = FALSE}
+.page-header {
+    background-image: linear-gradient(45deg, rgb(56, 112, 232), purple);
+    border: solid 1px black;
+    border-radius: .3rem;
+}
+
+```
+
+```{css , echo = FALSE}
+
+.myimg {
+  border: solid 1px black;
+}
+
+```
+
+
+<style type="text/css">
+
+.toc .toc-box {
+    padding: 1.5rem;
+    background-color: #f5f5f5;
+    border: solid 1px #6b6b6b;
+    border-radius: .3rem;
+}
+
+a {
+    color: black;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+
+
+.main-content h2, .main-content h3, .main-content h4, .main-content h5, .main-content h6 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-weight: 400;
+    color: black;
+}
+
+
+.main-content h1 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-weight: 750;
+    background-image: linear-gradient(45deg, rgb(56, 112, 232), purple);
+    background-position: center;
+    color: white;
+    text-align: center;
+    border: solid 1px black;
+    border-radius: .3rem;
+    background-color: #f5f5f5;
+} 
+
+
+
+h1.title {
+  font-size: 58px;
+  color: white;
+  text-align: center;
+}
+h3.subtitle { 
+    font-size: 28px;
+  font-family: "Times New Roman", Times, serif;
+  color: white ;
+  text-align: center;
+}
+h4.author { 
+    font-size: 24px;
+  font-family: "Times New Roman", Times, serif;
+  color:white ;
+  text-align: center;
+}
+
+.main-content table th {
+    font-weight: 700;
+    background-color: blue;
+    color: rgb(255, 255, 255);
+}
+
+
+
+
+</style>
+
+<br>
+</br>
+
+
+
+
+
+
+<div style="text-align: left" class="toc-box">
+# 1 - Introduccion
+</div>
+<div style="text-align: right" class="toc-box">
+ <a href="#top">Volver al Inicio</a>
+</div>
+<br>
+</br>
+
+
+En el siguiente trabajo evaluaremos la posibilidad de implementar un modelo de árbol de decisión utilizando una de los métodos de la libraría [caret](https://cran.r-project.org/web/packages/caret/vignettes/caret.html) llamado  rpart (Partición recursiva para árboles de clasificación, regresión y supervivencia) para los datos suministrados por Kaggle sobre observaciones del Titanic y sus pasajeros. 
+
+El data set tiene variables que caracterizan a los pasajeros, estas features junto a la variable objetivo, la de supervivencia, nos sirven para encontrar los parámetros que mejor estimen nuestra variable dependiente. 
+
+El set de datos vino separado por Test y Training, es decir, un conjunto de datos para testear el modelo y otro conjunto de datos para entrenarlo. Los datos se pueden descargar de [Kaggle](https://www.kaggle.com/c/titanic/data).
+
+Para la manipulación de los mismos primero se hace un merge entre ambos data set, una descripcion de cada una de las variables, su distribucion, conteno de valores nulos por variable y una limpieza del data set completo para luego separarlo en entrenamiento y testeo y probar nuestro modelo.
+
+**_Librerias_**
+
+```{r, warning=FALSE, message=FALSE}
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)  
+library(crayon)
+library(gridExtra)
+library(prettydoc)
+library(pacman)
+library(plotly)
+library(cvms)
+library(tibble)
+library(DT)
+library(caret)  
+library(rpart.plot)  
+library(skimr)
+
+```
+
+
+
+
+**_Lectura de los Datos_**
+
+```{r, warning=FALSE, message=FALSE}
+
+
+df = read_csv('train.csv')
+test = read.csv('test.csv')
+values = read.csv('gender_submission.csv')
+
+test$Survived = values$Survived
+
+
+
+```
+
+**_Merge_**
+
+
+```{r}
+
+
+
+df = rbind(df, test)
+
+
+
+```
+
+
+**_Dimensión del data set:_**
+
+
+```{r, echo=F}
+
+
+dim_data <- dim(df)
+cat("El dataset tiene una dimension de", bold(dim_data[1]),"filas y",bold(dim_data[2]),"columnas.\n")
+
+
+
+
+```
+
+
+
+**_Chequeo de la estructura del archivo importado:_**
+
+```{r, echo=F}
+
+str(df)
+
+```
+
+| $$ \textbf{Variable}$$ | $$ \textbf{Descripcion}$$ 
+|------------|------------|------------|
+|  Pclass    |     Clase del Pasaje (1 = 1st; 2 = 2nd; 3 = 3rd)    |     
+|   survival    |       Sobrevivio (0 = No; 1 = Yes)      |       
+|  name    |    Nombre        |     
+ |     sex    |    Sexo       |     
+  |       age     |     Edad    |    
+  |   sibsp         |     Numero de hermanas / conyuges a bordo    |    
+  |   parch         |      Numero de padres / niños a bordo   |    
+  |    ticket        |  Numero de Ticket       |    
+    |      fare     |   Tarifa de pasajero (libra esterlina)      |    
+    |      cabin      |   Cabina     |   
+    |      embarked      |   Puerto de embarque (C = Cherbourg; Q = Queenstown; S = Southampton     |   
+
+
+
+<br>
+</br>
+
+<div style="text-align: left" class="toc-box">
+# 2 - Analisis estadístico descriptivo de todo el dataset
+</div>
+<div style="text-align: right" class="toc-box">
+ <a href="#top">Volver al Inicio</a>
+</div>
+<br>
+</br>
+
+
+```{r, echo=F}
+
+summary(df)
+
+```
+
+<br>
+</br>
+
+<div style="text-align: left" class="toc-box">
+# 3 - Explorando el tipo de variables
+</div>
+<div style="text-align: right" class="toc-box">
+ <a href="#top">Volver al Inicio</a>
+</div>
+<br>
+</br>
+
+
+```{r, echo=F}
+count_cuantitativas  = 0   
+count_cualitativas   = 0    
+list_cuantitativas   = c()  
+list_cualitativas    = c()   
+
+for (i in colnames(df))
+{
+  cat("la columna",bold(i),"es del tipo",bold(typeof(df[[i]])), "\n")
+  if (is.character(df[[i]])){
+    count_cualitativas = count_cualitativas + 1
+    list_cualitativas <- c(list_cualitativas, i)
+    
+  } else {
+    count_cuantitativas = count_cuantitativas + 1
+    list_cuantitativas <- c(list_cuantitativas, i)
+  }
+}
+
+cat("\nHay", bold(count_cuantitativas), "variables cuantitativas y", bold(count_cualitativas), "variables cualitativas en el set de datos.\n")
+cat("\nLas variables cuantitativas son las siguientes:\n", paste0(list_cuantitativas, ","), ".\n")
+cat("\nLas variables cualitativas son las siguientes:\n", paste0(list_cualitativas, ","), ".\n")
+
+
+
+
+```
+<br>
+</br>
+
+
+<div style="text-align: left" class="toc-box">
+# 4 - Análisis de datos nulos
+</div>
+<div style="text-align: right" class="toc-box">
+ <a href="#top">Volver al Inicio</a>
+</div>
+<br>
+</br>
+
+
+*Data Frame*
+
+```{r, echo=F}
+
+col_names = names(df)
+for (i in col_names)
+{
+  na_sum = sum(is.na(df[i]))
+  na = na_sum
+  na_percent = na_sum
+  if (na_sum > 0) {
+    na = red(na_sum)
+    na_percent = red( round(100 * na_sum / length(df[[i]]) ,2) )
+  }
+  cat("La variable",bold(i), "tiene", bold(na), "registros nulos, el", bold(na_percent), "% del total de sus registros.\n")
+}
+
+```
+
+
+
+
+*Campo Age Data Frame*
+
+
+El campo Age tiene 20 % de registros nulos. Para completar este campo, ya que estimamos que va a ser de relevancia para nuestro modelo, buscamos hacer una segmentación del data set en función de distintas características para obtener la media de la edad de los pasajeros y luego completar los datos faltantes.
+
+En base a si sobrevivió o no, si es mujer o hombre y la clase del pasaje se estima la media de la edad y se imputa a los valores faltantes que cumplan con las características de la segmentación. Para esta metodología se obtuvieron 12 medias ya que es el máximo de selecciones que se puede obtener en base a las variables escogidas.
+
+```{r}
+
+
+
+df$Age[is.na(filter(df, Survived == 0, Sex == 'male', Pclass   == 1)$Age)] = as.numeric(df %>% filter(Survived == 0, Sex == 'male',   Pclass == 1) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 1, Sex == 'male', Pclass   == 1)$Age)] = as.numeric(df %>% filter(Survived == 1, Sex == 'male',   Pclass == 1) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 0, Sex == 'female', Pclass == 1)$Age)] = as.numeric(df %>% filter(Survived == 0, Sex == 'female', Pclass == 1) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 1, Sex == 'female', Pclass == 1)$Age)] = as.numeric(df %>% filter(Survived == 1, Sex == 'female', Pclass == 1) %>% summarise(media = mean(Age, na.rm = TRUE)))
+
+
+df$Age[is.na(filter(df, Survived == 0, Sex == 'male', Pclass   == 2)$Age)] = as.numeric(df %>% filter(Survived == 0, Sex == 'male',   Pclass == 2) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 1, Sex == 'male', Pclass   == 2)$Age)] = as.numeric(df %>% filter(Survived == 1, Sex == 'male',   Pclass == 2) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 0, Sex == 'female', Pclass == 2)$Age)] = as.numeric(df %>% filter(Survived == 0, Sex == 'female', Pclass == 2) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 1, Sex == 'female', Pclass == 2)$Age)] = as.numeric(df %>% filter(Survived == 1, Sex == 'female', Pclass == 2) %>% summarise(media = mean(Age, na.rm = TRUE)))
+
+
+df$Age[is.na(filter(df, Survived == 0, Sex == 'male', Pclass   == 3)$Age)] = as.numeric(df %>% filter(Survived == 0, Sex == 'male',   Pclass == 3) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 1, Sex == 'male', Pclass   == 3)$Age)] = as.numeric(df %>% filter(Survived == 1, Sex == 'male',   Pclass == 3) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 0, Sex == 'female', Pclass == 3)$Age)] = as.numeric(df %>% filter(Survived == 0, Sex == 'female', Pclass == 3) %>% summarise(media = mean(Age, na.rm = TRUE)))
+df$Age[is.na(filter(df, Survived == 1, Sex == 'female', Pclass == 3)$Age)] = as.numeric(df %>% filter(Survived == 1, Sex == 'female', Pclass == 3) %>% summarise(media = mean(Age, na.rm = TRUE)))
+
+
+df$Age[is.na(df$Age)] = mean(df$Age, na.rm = TRUE)
+
+```
+
+
+
+*Eliminamos y editamos algunas columnas y filas para limpiar el data set.*
+
+```{r}
+
+
+
+df$Cabin         = NULL
+df$Ticket        = NULL
+df$Name          = NULL
+df$PassengerId   = NULL
+
+
+df$Embarked[is.na(df$Embarked)] = names(sort(table(df$Embarked))[length(sort(table(df$Embarked)))])
+
+
+df$Fare[is.na(df$Fare)] = mean(df$Fare, na.rm = TRUE)
+
+
+```
+
+
+*Convertimos en factor nuestra variable objetivo*
+
+```{r}
+
+df$Survived = as.factor(df$Survived)
+
+```
+
+
+
+<br>
+</br>
+
+
+<div style="text-align: left" class="toc-box">
+# 5 - Distribucion de las Variables
+</div>
+<div style="text-align: right" class="toc-box">
+ <a href="#top">Volver al Inicio</a>
+</div>
+<br>
+</br>
+
+
+
+```{r, warning=FALSE, fig.dim = c(10, 8)}
+
+ggplotly(
+ggplot(df) + 
+  geom_density(
+    aes(df$Age, fill = "Edad"),
+               fill = 'blue',
+               color = 'black',
+               alpha = 0.3, 
+               show.legend = FALSE) +
+  theme_bw() + 
+  xlab('Edad') +
+  ylab('Densidad') +
+  labs(title = 'Distribucion de las Edades')) %>%  config(displayModeBar = F)
+
+
+ggplotly(
+ggplot(df) + 
+  geom_density(
+    aes(df$Fare, fill = "Fare"),
+               fill = 'red',
+               color = 'black',
+               alpha = 0.3, 
+               show.legend = FALSE) +
+  theme_bw() + 
+  xlab('Fare') +
+  ylab('Densidad') +
+  labs(title = 'Distribucion Fare')) %>%  config(displayModeBar = F)
+
+
+
+
+ggplotly(
+ggplot(df) + 
+  geom_bar(
+    aes(df$Sex, fill = "Sex"),
+               fill = 'violet',
+               color = 'black',
+               alpha = 0.3, 
+               show.legend = FALSE) +
+  theme_bw() + 
+  xlab('Sexo') +
+  ylab('Count') +
+  labs(title = 'Grafico de Barras por Sexo')) %>%  config(displayModeBar = F)
+
+
+
+
+
+ggplotly(
+ggplot(df) + 
+  geom_bar(
+    aes(df$Survived, fill = "Survived"),
+               fill = 'red',
+               color = 'black',
+               alpha = 0.3, 
+               show.legend = FALSE) +
+  theme_bw() + 
+  xlab('Survived') +
+  ylab('Count') +
+  labs(title = 'Grafico de Barras por Survived')) %>%  config(displayModeBar = F)
+
+
+
+
+ggplotly(
+ggplot(df) + 
+  geom_bar(
+    aes(df$Embarked, fill = "Embarked"),
+               fill = 'red',
+               color = 'black',
+               alpha = 0.3, 
+               show.legend = FALSE) +
+  theme_bw() + 
+  xlab('Embarked') +
+  ylab('Count') +
+  labs(title = 'Grafico de Barras por Embarked')) %>%  config(displayModeBar = F)
+
+
+
+
+ggplotly(
+ggplot(df) + 
+  geom_bar(
+    aes(df$Pclass, fill = "Pclass"),
+               fill = 'blue',
+               color = 'black',
+               alpha = 0.3, 
+               show.legend = FALSE) +
+  theme_bw() + 
+  xlab('Pclass') +
+  ylab('Count') +
+  labs(title = 'Grafico de Barras por Pclass')) %>%  config(displayModeBar = F)
+
+
+```
+
+
+
+
+
+<br>
+</br>
+
+
+<div style="text-align: left" class="toc-box">
+# 6 - Árbol de Decisión
+</div>
+<div style="text-align: right" class="toc-box">
+ <a href="#top">Volver al Inicio</a>
+</div>
+<br>
+</br>
+
+Los árboles de decisión utilizan varios algoritmos para dividir un nodo en subnodos. La creación de estos subnodos aumenta la homogeneidad de los mismos, es decir, podemos decir que la pureza del nodo aumenta con respecto a la variable objetivo. 
+
+El árbol divide los nodos en todas las variables disponibles y luego selecciona la división que da como resultado la mayoría de los subnodos homogéneos, es decir, maximiza la elección de subnodos homogéneos.
+
+Para comenzar con el modelo seteamos una semilla para que los resultados sean siempre los mismos al ejecutar el modelo, también separamos nuestro conjunto de datos en test y training con un 70 % para entrenar.
+
+
+```{r}
+
+set.seed(107)
+
+data_train = sort(sample(nrow(df), nrow(df)*.7))
+
+train      = df[data_train,]
+
+test       = df[-data_train,]
+
+```
+
+
+
+Ejecutamos el modelo utilizando rpart, colocamos inicialmente la variable dependiente Survived y que tome el conjunto del data set entero de entrenamiento, este paso se hace colocando un punto luego del signo ~, esto nos permite tomar todo el data set completo sin tener en cuenta la variable objetivo.
+
+El método que vamos a utilizar es el class ya que contamos con una variable dependiente que es una clase. 
+
+El parámetro de complejidad (cp) se utiliza para controlar el tamaño del árbol de decisión y para seleccionar el tamaño de árbol óptimo. Si el costo de agregar otra variable al árbol de decisión desde el nodo actual está por encima del valor de cp, entonces la construcción del árbol no continúa. En definitiva, el CP es un Parámetro que detiene las divisiones de los nodos en un máximo. Para nuestro modelo vamos a programarlo con un valor casi de cero para luego ir recortando los nodos y achicar el árbol e ir mejorando nuestro modelo.
+
+
+```{r}
+
+model_arbol = rpart(Survived ~ . , data = train, method = 'class', cp = 0.001)
+
+```
+
+
+
+
+El árbol se encuentra dividido en nodos, donde la primera divison, el nodo principal, es entre el sexo de los pasajeros, se divide entre hombre y mujer, donde la división por hombre se hace por un 65 % de los datos y por mujer con un 35 %, estos valores se encuentran en el gráfico. 
+
+Cada Nodo contiene:
+
+- No Survived = 0, Survived = 1
+
+- Probabilidad de Supervivencia
+
+- Porcentaje de observaciones por Nodo
+
+Seteamos el tipo de Árbol que deseamos, el tamaño de los valores y descripciones que aparecen en el árbol y con box.palette creamos una paleta de colores donde el mas claro es mas cerca de no sobrevivir y el rojo mas oscuro mas cerca de sobrevivir.
+
+Una vez observado el Árbol podemos sacar algunas conclusiones:
+
+- Si el Sexo es Hombre y la variable Fare es menor a 26, hay 90 % de probabilidades de no sobrevivir.
+
+- Si el Sexo es Mujer y la variable Pclass es menor a 3, hay 97 % de probabilidades de sobrevivir. 
+
+
+```{r, fig.dim = c(10, 8)}
+
+rpart.plot(model_arbol, type = 4, fallen.leaves = F, cex = 0.62,  box.palette=c("#F6C9C9", "#D47676", "#D52727"), branch.lty = 3, shadow.col = "gray")
+
+```
+
+*Importancia de las variables*
+
+Podemos observar que para el modelo la variable mas relevante es el sexo.
+
+```{r}
+
+barplot(model_arbol$variable.importance,                              
+        main = "Importancia de las variables",             
+        xlab = "Variables",      
+        border = "black",                      
+        col = c("#EC8686"))
+```
+
+El modelo nos da valores entre 0 y 1, el algoritmo toma como 0 si el output es menor a 0,5 y como 1 si es mayor a 0,5 para poder clasificar la variable.
+
+```{r}
+
+predict = predict(model_arbol, test, type = 'class')
+
+```
+
+*Matriz de Confusión* 
+
+
+```{r}
+
+cm = confusionMatrix(as.factor(predict), as.factor(test$Survived), positive = NULL, dnn = c("Prediction", "Reference"))
+
+cm
+
+```
+
+
+```{r, warning=FALSE, fig.dim = c(10, 8)}
+
+
+
+cfm = as_tibble(table(tibble("target" = test$Survived,
+              "prediction" = predict)))
+
+
+plot_confusion_matrix(cfm, 
+                      target_col = "target", 
+                      prediction_col = "prediction",
+                      counts_col = "n",
+                      palette = 'Reds')
+
+
+
+```
+*Accuracy:*
+
+El acurracy es el porcentaje total de elementos clasificados correctamente, es decir, la suma de los verdaderos positivos y los verdaderos negativos dividido el total.
+
+```{r, echo=F}
+
+cat("El Acurracy del modelo es de: ", bold(round(cm$overall[1],2)))
+
+```
+
+<div style="text-align: left" class="toc-box">
+# 7 - Ajuste del Modelo
+</div>
+<div style="text-align: right" class="toc-box">
+ <a href="#top">Volver al Inicio</a>
+</div>
+<br>
+</br>
+
+En base a lo mencionado anteriormente sobre el parámetro de complejidad, para este caso, queremos evaluar un modelo mas simple, por lo tanto vamos a tener que podar el árbol.
+
+Para poder continuar tenemos que encontrar el parametro de complejidad que haga minimo el error de [validación cruzada](https://es.wikipedia.org/wiki/Validaci%C3%B3n_cruzada). 
+
+```{r}
+
+cp_2 = model_arbol$cptable[which.min(model_arbol$cptable[,"xerror"]),"CP"]
+
+model_arbol_2 = rpart(Survived ~ . , data = train, method = 'class', cp = cp_2)
+
+predict_2 = predict(model_arbol_2, test, type = 'class')
+
+
+```
+
+
+```{r, warning=FALSE, fig.dim = c(10, 8)}
+
+rpart.plot(model_arbol_2, type = 4, fallen.leaves = F, cex = 0.62,  box.palette=c("#F6C9C9", "#D47676", "#D52727"), branch.lty = 3, shadow.col = "gray")
+
+```
+
+
+
+```{r, warning=FALSE, fig.dim = c(10, 8)}
+
+
+
+cm_2 = confusionMatrix(as.factor(predict_2), as.factor(test$Survived), positive = NULL, dnn = c("Prediction", "Reference"))
+
+cm_2
+
+cfm_2 = as_tibble(table(tibble("target" = test$Survived,
+              "prediction" = predict_2)))
+
+
+plot_confusion_matrix(cfm_2, 
+                      target_col = "target", 
+                      prediction_col = "prediction",
+                      counts_col = "n",
+                      palette = 'Reds')
+
+
+
+
+```
+
+
+*Accuracy:*
+
+
+
+```{r, echo=F}
+
+cat("El Acurracy del modelo es de: ", bold(round(cm_2$overall[1],2)))
+
+
+```
+
+```{r, echo=F}
+
+if (cm_2$overall[1] > cm$overall[1]) {
+  cat('El Acurracy del modelo mejoro en ',round(cm_2$overall[1] - cm$overall[1],2) * 100, 'puntos porcentuales.')
+}
+
+
+```
+
+
+<div style="text-align: left" class="toc-box">
+# 7 - Conclusiones
+</div>
+<div style="text-align: right" class="toc-box">
+ <a href="#top">Volver al Inicio</a>
+</div>
+<br>
+</br>
+
+En primera instancia utilizamos los datos disponibles para estimar valores faltantes que nos parecieron importantes para el modelo a realizar, se imputaron las edades en base a segmentaciones por distintas variables que caracterizaban a los pasajeros, se eliminaron algunas columnas que no eran relevantes y luego se entreno el modelo con el 70 % de los datos.
+
+Como primer paso para el modelo de Árbol de Decisión se utilizo un valor muy bajo de cp para poder observar una mayor cantidad de nodos y recalibar el mismo en base a el parámetro de complejidad que hace mínimo el error de validación cruzada.
+
+Este método mejoro nuestras estimaciones ya que incremento el Acurracy del modelo, dándonos mejores resultados.
+
+
+
+
+
+
+
