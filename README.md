@@ -1,5 +1,12 @@
 # Arbol de Decision
 
+
+<p align="center">
+<img src="https://miro.medium.com/max/1200/1*pCMYpiE-KtV8QUsg9zv_GQ.gif" alt="react" width="600" height="280" />
+</p>
+
+
+
 El siguiente trabajo consiste en calibar un Arbol de Decision utilizando R y los datos de Kaggle para el Data Set de Titanic y asi obtener los parametros que nos ayuden a predecir si un pasajero sobrevivio o no en base a las variables disponibles.
 
 
