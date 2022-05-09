@@ -1,5 +1,6 @@
+<p align="center">
 # Arbol de Decision
-
+</p>
 
 <p align="center">
 <img src="https://miro.medium.com/max/1200/1*pCMYpiE-KtV8QUsg9zv_GQ.gif" alt="react" width="600" height="280" />
