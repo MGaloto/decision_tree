@@ -64,12 +64,16 @@ Aprendizaje Automatico.
 </ui>
 
 
-# Link
+# Links
 
 <ui>
 
 <li>
 https://www.kaggle.com/c/titanic
+</li>
+  
+<li>
+https://rpubs.com/MGaloto/class_tree
 </li>
 
 
